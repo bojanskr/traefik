@@ -368,7 +368,7 @@ Path are always starting with a `/`, except for `PathRegexp`.
     [case-insensitively](https://en.wikipedia.org/wiki/Case_sensitivity):
 
     ```yaml
-    HostRegexp(`(?i)^/products`)
+    PathRegexp(`(?i)^/products`)
     ```
 
 #### Query and QueryRegexp
@@ -479,7 +479,7 @@ A value of `0` for the priority is ignored: `priority = 0` means that the defaul
 
     | Name     | Rule                                     | Priority |
     |----------|------------------------------------------|----------|
-    | Router-1 | ```HostRegexp(`[a-z]+\.traefik\.com`)``` | 44       |
+    | Router-1 | ```HostRegexp(`[a-z]+\.traefik\.com`)``` | 34       |
     | Router-2 | ```Host(`foobar.traefik.com`)```         | 26       |
 
     The previous table shows that `Router-1` has a higher priority than `Router-2`.
@@ -827,7 +827,7 @@ http:
 ```
 
 !!! info "Multiple Hosts in a Rule"
-    The rule ```Host(`test1.example.com`,`test2.example.com`)``` will request a certificate with the main domain `test1.example.com` and SAN `test2.example.com`.
+    The rule ```Host(`test1.example.com`) || Host(`test2.example.com`)``` will request a certificate with the main domain `test1.example.com` and SAN `test2.example.com`.
 
 #### `domains`
 
@@ -876,6 +876,117 @@ The [supported `provider` table](../../https/acme.md#providers) indicates if the
 
 !!! warning "Double Wildcard Certificates"
     It is not possible to request a double wildcard certificate for a domain (for example `*.*.local.com`).
+
+### Observability
+
+The Observability section defines a per router behavior regarding access-logs, metrics or tracing.
+
+The default router observability configuration is inherited from the attached EntryPoints and can be configured with the observability [options](../../routing/entrypoints.md#observability-options).
+However, a router defining its own observability configuration will opt-out from these defaults.
+
+!!! info "Note that to enable router-level observability, you must first enable access-logs, tracing, and/or metrics."
+    
+!!! warning "AddInternals option"
+
+    By default, and for any type of signals (access-logs, metrics and tracing),
+    Traefik disables observability for internal resources.
+    The observability options described below cannot interfere with the `AddInternals` ones,
+    and will be ignored.
+
+    For instance, if a router exposes the `api@internal` service and `metrics.AddInternals` is false,
+    it will never produces metrics, even if the router observability configuration enables metrics.
+
+#### `accessLogs`
+
+_Optional_
+
+The `accessLogs` option controls whether the router will produce access-logs.
+
+??? example "Disable access-logs for a router using the [File Provider](../../providers/file.md)"
+
+    ```yaml tab="YAML"
+    ## Dynamic configuration
+    http:
+      routers:
+        my-router:
+          rule: "Path(`/foo`)"
+          service: service-foo
+          observability:
+            accessLogs: false
+    ```
+
+    ```toml tab="TOML"
+    ## Dynamic configuration
+    [http.routers]
+      [http.routers.my-router]
+        rule = "Path(`/foo`)"
+        service = "service-foo"
+        [http.routers.my-router.observability]
+          accessLogs = false
+    ```
+
+#### `metrics`
+
+_Optional_
+
+The `metrics` option controls whether the router will produce metrics.
+
+!!! warning "Metrics layers"
+
+    When metrics layers are not enabled with the `addEntryPointsLabels`, `addRoutersLabels` and/or `addServicesLabels` options,
+    enabling metrics for a router will not enable them.
+
+??? example "Disable metrics for a router using the [File Provider](../../providers/file.md)"
+
+    ```yaml tab="YAML"
+    ## Dynamic configuration
+    http:
+      routers:
+        my-router:
+          rule: "Path(`/foo`)"
+          service: service-foo
+          observability:
+            metrics: false
+    ```
+
+    ```toml tab="TOML"
+    ## Dynamic configuration
+    [http.routers]
+      [http.routers.my-router]
+        rule = "Path(`/foo`)"
+        service = "service-foo"
+        [http.routers.my-router.observability]
+          metrics = false
+    ```
+
+#### `tracing`
+
+_Optional_
+
+The `tracing` option controls whether the router will produce traces.
+
+??? example "Disable tracing for a router using the [File Provider](../../providers/file.md)"
+
+    ```yaml tab="YAML"
+    ## Dynamic configuration
+    http:
+      routers:
+        my-router:
+          rule: "Path(`/foo`)"
+          service: service-foo
+          observability:
+            tracing: false
+    ```
+
+    ```toml tab="TOML"
+    ## Dynamic configuration
+    [http.routers]
+      [http.routers.my-router]
+        rule = "Path(`/foo`)"
+        service = "service-foo"
+        [http.routers.my-router.observability]
+          tracing = false
+    ```
 
 ## Configuring TCP Routers
 
@@ -1197,7 +1308,7 @@ A value of `0` for the priority is ignored: `priority = 0` means that the defaul
     | Router-2 | ```ClientIP(`192.168.0.0/24`)```                            | 26       |
 
     Which means that requests from `192.168.0.12` would go to Router-2 even though Router-1 is intended to specifically handle them.
-    To achieve this intention, a priority (higher than 26) should be set on Router-1.
+    To achieve this intention, a priority (greater than 26) should be set on Router-1.
 
 ??? example "Setting priorities -- using the [File Provider](../../providers/file.md)"
 
